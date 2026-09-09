@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../shared/resource_bar.dart';
 import 'logic/game_controller.dart';
 import 'models/block_color.dart';
 import 'models/piece.dart';
 
-/// Faz 1 çekirdek prototip ekranı: 8x8 tahta + 3'lü parça tepsisi.
-/// Ada/üs kurma ekranı henüz yok (Faz 2) — bu ekran kaynak/bina sisteminden
-/// bağımsız olarak tek başına test edilebilir (bkz. docs/GDD.md, Bölüm 14).
+/// Çekirdek oyun ekranı: 8x8 tahta + 3'lü parça tepsisi. Kaynak bakiyesi
+/// [ResourceBar] üzerinden Island ekranıyla paylaşılır (bkz. docs/GDD.md,
+/// Bölüm 14 — bu ekran kaynak/bina sisteminden bağımsız olarak tek başına
+/// da test edilebilir kalır).
 class BoardScreen extends ConsumerWidget {
   const BoardScreen({super.key});
 
   static const _background = Color(0xFF0E2033);
   static const _panel = Color(0xFF16304A);
   static const _ink = Color(0xFFEFE6D3);
-  static const _inkDim = Color(0xFF9FB6C7);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,7 +28,7 @@ class BoardScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _ScoreHeader(score: state.score, resources: state.resources),
+              _ScoreHeader(score: state.score),
               const SizedBox(height: 20),
               Expanded(
                 child: Center(
@@ -50,10 +51,9 @@ class BoardScreen extends ConsumerWidget {
 }
 
 class _ScoreHeader extends StatelessWidget {
-  const _ScoreHeader({required this.score, required this.resources});
+  const _ScoreHeader({required this.score});
 
   final int score;
-  final Map<ResourceType, int> resources;
 
   @override
   Widget build(BuildContext context) {
@@ -68,43 +68,7 @@ class _ScoreHeader extends StatelessWidget {
             fontSize: 20,
           ),
         ),
-        Row(
-          children: [
-            _ResourceChip(icon: '🪵', amount: resources[ResourceType.wood] ?? 0),
-            const SizedBox(width: 10),
-            _ResourceChip(icon: '🪨', amount: resources[ResourceType.stone] ?? 0),
-            const SizedBox(width: 10),
-            _ResourceChip(
-              icon: '💎',
-              amount: resources[ResourceType.crystal] ?? 0,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ResourceChip extends StatelessWidget {
-  const _ResourceChip({required this.icon, required this.amount});
-
-  final String icon;
-  final int amount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(icon, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 4),
-        Text(
-          '$amount',
-          style: const TextStyle(
-            color: BoardScreen._inkDim,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const ResourceBar(),
       ],
     );
   }

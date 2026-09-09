@@ -56,7 +56,23 @@ void main() {
 
       expect(controller.state.score, 0);
       expect(controller.state.board.filledCellCount, 0);
-      expect(controller.state.resources[ResourceType.wood], 0);
+    });
+
+    test('her geçerli yerleştirmede onResourcesGained çağrılır', () {
+      final gains = <Map<ResourceType, int>>[];
+      final controller = GameController(
+        generator: PieceGenerator(random: Random(1)),
+        onResourcesGained: gains.add,
+      );
+
+      controller.placePiece(0, 0, 0);
+
+      // Tek bir yerleştirme satır/sütun temizlemese bile (kaynak kazancı
+      // sıfır olabilir), cüzdana bildirim tam olarak bir kez yapılmalı.
+      // Kaynakların doğru miktar/renk eşleşmesi BoardState.place testlerinde
+      // (board_state_test.dart) ve ResourceWallet testlerinde ayrıca
+      // doğrulanıyor.
+      expect(gains.length, 1);
     });
   });
 }

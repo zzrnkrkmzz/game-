@@ -20,3 +20,11 @@ extension BlockColorX on BlockColor {
 
 /// Ada'da bina inşa etmek için kullanılan kaynak türleri (bkz. Bölüm 3).
 enum ResourceType { wood, stone, crystal }
+
+extension ResourceTypeX on ResourceType {
+  String get icon => switch (this) {
+    ResourceType.wood => '🪵',
+    ResourceType.stone => '🪨',
+    ResourceType.crystal => '💎',
+  };
+}
