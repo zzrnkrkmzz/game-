@@ -11,9 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('BoardScreen skor ve tahtayı gösterir', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: BoardScreen()),
-      ),
+      const ProviderScope(child: MaterialApp(home: BoardScreen())),
     );
 
     expect(find.text('SKOR 0'), findsOneWidget);
@@ -22,15 +20,15 @@ void main() {
 
   testWidgets('onboarding ipucu ilk hamlelerde görünür', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: BoardScreen()),
-      ),
+      const ProviderScope(child: MaterialApp(home: BoardScreen())),
     );
 
     expect(find.textContaining('sürükle'), findsOneWidget);
   });
 
-  testWidgets('ilk satır temizlenince onboarding ipucu kaybolur', (tester) async {
+  testWidgets('ilk satır temizlenince onboarding ipucu kaybolur', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         onboardingControllerProvider.overrideWith(
@@ -54,7 +52,9 @@ void main() {
     expect(find.textContaining('sürükle'), findsNothing);
   });
 
-  testWidgets('bir parça sürükleyip tahtaya bırakınca skor artar', (tester) async {
+  testWidgets('bir parça sürükleyip tahtaya bırakınca skor artar', (
+    tester,
+  ) async {
     // Üretim provider'ı tohumsuz (Random()) bir PieceGenerator kullanıyor;
     // testte kararlılık için burada sabit tohumlu bir generator'a geçiliyor.
     final container = ProviderContainer(
@@ -112,7 +112,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           gameControllerProvider.overrideWith(
-            (ref) => GameController(generator: PieceGenerator(random: Random(1))),
+            (ref) =>
+                GameController(generator: PieceGenerator(random: Random(1))),
           ),
         ],
       );

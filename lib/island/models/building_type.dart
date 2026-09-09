@@ -56,8 +56,8 @@ extension BuildingTypeX on BuildingType {
   String effectDescriptionFor(int level) {
     if (level <= 0) return 'Henüz inşa edilmedi';
     return switch (this) {
-      BuildingType.warehouse => 'Tahtada +$level ekstra undo hakkı',
-      BuildingType.mill => 'Dakikada +${level * 2} pasif kaynak üretimi',
+      BuildingType.warehouse => 'Tahtada +$level ekstra geri al hakkı',
+      BuildingType.mill => 'Satır temizlemede +$level ekstra 🪨',
       BuildingType.market => 'Kaynağı gem\'e çevirme oranı +%${level * 5}',
       BuildingType.lighthouse => 'Günlük ödül çarpanı +%${level * 10}',
     };

@@ -14,7 +14,10 @@ void main() {
 
     test('tahta sınırlarının dışına taşan parça yerleştirilemez', () {
       final board = BoardState(size: 8);
-      const piece = Piece(shape: PieceShapes.tetrominoIH, color: BlockColor.coral);
+      const piece = Piece(
+        shape: PieceShapes.tetrominoIH,
+        color: BlockColor.coral,
+      );
       expect(board.canPlace(piece, 0, 6), isFalse);
       expect(board.canPlace(piece, 8, 0), isFalse);
     });
@@ -136,7 +139,10 @@ void main() {
 
     test('boş tahtada her zaman en az bir yer vardır', () {
       final board = BoardState(size: 8);
-      const piece = Piece(shape: PieceShapes.tetrominoL, color: BlockColor.coral);
+      const piece = Piece(
+        shape: PieceShapes.tetrominoL,
+        color: BlockColor.coral,
+      );
 
       expect(board.canPlaceAnywhere(piece), isTrue);
     });
@@ -146,7 +152,11 @@ void main() {
     test('buz bloğu ilk satır tamamlanışında kaybolmaz, ikincide kaybolur', () {
       final board = BoardState(size: 8);
       board.place(
-        const Piece(shape: PieceShapes.single, color: BlockColor.coral, isIce: true),
+        const Piece(
+          shape: PieceShapes.single,
+          color: BlockColor.coral,
+          isIce: true,
+        ),
         0,
         0,
       );
@@ -160,7 +170,10 @@ void main() {
 
       // Satır tamamlandı (skor/kombo için sayılır) ama buz hücre kalıyor.
       expect(board.cellAt(0, 0), isNotNull);
-      expect(board.cellAt(0, 0)!.isIce, isFalse); // 1 vuruş kaldı, artık "buz" değil
+      expect(
+        board.cellAt(0, 0)!.isIce,
+        isFalse,
+      ); // 1 vuruş kaldı, artık "buz" değil
       expect(board.cellAt(0, 1), isNull);
 
       // Satırı tekrar doldurunca (col0 zaten dolu, col1-7'yi yeniden
@@ -188,7 +201,11 @@ void main() {
         );
       }
       final result = board.place(
-        const Piece(shape: PieceShapes.single, color: BlockColor.coral, isBonus: true),
+        const Piece(
+          shape: PieceShapes.single,
+          color: BlockColor.coral,
+          isBonus: true,
+        ),
         0,
         7,
       );

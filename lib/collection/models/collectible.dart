@@ -121,7 +121,8 @@ class CollectibleCatalog {
     required int streak,
   }) => all
       .where(
-        (c) => c.isUnlockedFor(islandTotalLevel: islandTotalLevel, streak: streak),
+        (c) =>
+            c.isUnlockedFor(islandTotalLevel: islandTotalLevel, streak: streak),
       )
       .map((c) => c.id)
       .toSet();

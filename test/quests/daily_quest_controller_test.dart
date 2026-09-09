@@ -38,7 +38,10 @@ void main() {
 
       expect(controller.state.quests.first.progress, 1);
       for (var i = 0; i < otherQuests.length; i++) {
-        expect(controller.state.quests[i + 1].progress, otherQuests[i].progress);
+        expect(
+          controller.state.quests[i + 1].progress,
+          otherQuests[i].progress,
+        );
       }
     });
 
@@ -113,7 +116,11 @@ void main() {
   });
 }
 
-void _completeQuest(DailyQuestController controller, QuestType type, int target) {
+void _completeQuest(
+  DailyQuestController controller,
+  QuestType type,
+  int target,
+) {
   switch (type) {
     case QuestType.clearLines:
       controller.recordLinesCleared(target);

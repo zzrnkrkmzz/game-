@@ -101,7 +101,10 @@ class _QuestRow extends StatelessWidget {
               children: [
                 Text(
                   quest.description,
-                  style: const TextStyle(color: _ink, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(

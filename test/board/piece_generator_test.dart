@@ -18,39 +18,38 @@ void main() {
       expect(tray.length, PieceGenerator.traySize);
     });
 
-    test(
-      'tahta doluluk eşiğinin (%75) üzerindeyken üretilen tepside her zaman '
-      'sığan en az bir parça vardır (anti-frustration)',
-      () {
-        final generator = PieceGenerator(random: Random(42));
-        final board = _diagonalGapsBoard();
+    test('tahta doluluk eşiğinin (%75) üzerindeyken üretilen tepside her zaman '
+        'sığan en az bir parça vardır (anti-frustration)', () {
+      final generator = PieceGenerator(random: Random(42));
+      final board = _diagonalGapsBoard();
 
-        // %87.5 dolu (64 hücrenin 56'sı) ve boş kalan 8 hücre (köşegen)
-        // birbirine komşu değil — yalnızca "single" (1 hücrelik) parça
-        // sığabiliyor. Bu, anti-frustration güvenlik ağını gerçekten test
-        // eden dar bir senaryo.
-        expect(board.fillRatio, greaterThanOrEqualTo(0.75));
+      // %87.5 dolu (64 hücrenin 56'sı) ve boş kalan 8 hücre (köşegen)
+      // birbirine komşu değil — yalnızca "single" (1 hücrelik) parça
+      // sığabiliyor. Bu, anti-frustration güvenlik ağını gerçekten test
+      // eden dar bir senaryo.
+      expect(board.fillRatio, greaterThanOrEqualTo(0.75));
 
-        for (var i = 0; i < 200; i++) {
-          final tray = generator.generateTray(board);
-          final anyFits = tray.any(board.canPlaceAnywhere);
-          expect(
-            anyFits,
-            isTrue,
-            reason: 'Doluluk %75 üzerindeyken tepside sığan parça olmalı',
-          );
-        }
-      },
-    );
+      for (var i = 0; i < 200; i++) {
+        final tray = generator.generateTray(board);
+        final anyFits = tray.any(board.canPlaceAnywhere);
+        expect(
+          anyFits,
+          isTrue,
+          reason: 'Doluluk %75 üzerindeyken tepside sığan parça olmalı',
+        );
+      }
+    });
 
     test('yalnızca köşegenin sığdığı bir tahtada güvenlik ağı "single" parça bulur', () {
       final generator = PieceGenerator(random: Random(7));
       final board = _diagonalGapsBoard();
 
-      final piece = generator.generateTray(board).firstWhere(
-        board.canPlaceAnywhere,
-        orElse: () => throw StateError('sığan parça bulunamadı'),
-      );
+      final piece = generator
+          .generateTray(board)
+          .firstWhere(
+            board.canPlaceAnywhere,
+            orElse: () => throw StateError('sığan parça bulunamadı'),
+          );
 
       expect(piece.cellCount, 1);
     });

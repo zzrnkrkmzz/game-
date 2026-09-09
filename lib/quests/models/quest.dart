@@ -1,5 +1,11 @@
 /// Günlük görev türleri (bkz. docs/GDD.md, Bölüm 5 - Retention Mekanikleri).
-enum QuestType { clearLines, placeCells, upgradeBuilding, scorePoints, finishRounds }
+enum QuestType {
+  clearLines,
+  placeCells,
+  upgradeBuilding,
+  scorePoints,
+  finishRounds,
+}
 
 extension QuestTypeX on QuestType {
   String get icon => switch (this) {

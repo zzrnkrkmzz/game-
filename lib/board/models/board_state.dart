@@ -24,7 +24,10 @@ class PlacementResult {
 class BoardState {
   BoardState({int size = 8})
     : size = size,
-      _cells = List.generate(size, (_) => List<PlacedBlock?>.filled(size, null));
+      _cells = List.generate(
+        size,
+        (_) => List<PlacedBlock?>.filled(size, null),
+      );
 
   BoardState._fromCells(this._cells) : size = _cells.length;
 
@@ -43,8 +46,9 @@ class BoardState {
   /// Tahtanın doluluk oranı (0.0 - 1.0). Anti-frustration eşiği için kullanılır.
   double get fillRatio => filledCellCount / (size * size);
 
-  BoardState copy() =>
-      BoardState._fromCells(_cells.map((row) => List<PlacedBlock?>.from(row)).toList());
+  BoardState copy() => BoardState._fromCells(
+    _cells.map((row) => List<PlacedBlock?>.from(row)).toList(),
+  );
 
   /// [piece], (anchorRow, anchorCol) konumuna tahtanın sınırları içinde ve
   /// dolu hücreyle çakışmadan yerleştirilebiliyorsa `true` döner.

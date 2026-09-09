@@ -57,10 +57,12 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
     if (result.linesCleared > 0) Haptics.lineCleared();
     if (next.isGameOver && previous?.isGameOver != true) Haptics.gameOver();
 
-    if (result.scoreGained <= 0) return;
-    final text = result.linesCleared > 1
-        ? '+${result.scoreGained} · KOMBO x${result.linesCleared}!'
-        : '+${result.scoreGained}';
+    final totalGained = result.scoreGained + next.lastStreakBonus;
+    if (totalGained <= 0) return;
+    final parts = <String>['+$totalGained'];
+    if (result.linesCleared > 1) parts.add('KOMBO x${result.linesCleared}');
+    if (next.lastStreakBonus > 0) parts.add('SERİ x${next.clearStreak}');
+    final text = parts.length > 1 ? '${parts.join(' · ')}!' : parts.first;
 
     final seq = ++_popupSeq;
     setState(() => _popupText = text);
@@ -91,7 +93,8 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
               children: [
                 Column(
                   children: [
-                    _ScoreHeader(score: state.score),
+                    _ScoreHeader(score: state.score, streak: state.clearStreak),
+                    _UndoBar(remaining: state.undosRemaining),
                     const SizedBox(height: 18),
                     Expanded(
                       child: Center(
@@ -182,9 +185,10 @@ class _MoveHint extends StatelessWidget {
 }
 
 class _ScoreHeader extends StatelessWidget {
-  const _ScoreHeader({required this.score});
+  const _ScoreHeader({required this.score, required this.streak});
 
   final int score;
+  final int streak;
 
   @override
   Widget build(BuildContext context) {
@@ -219,10 +223,95 @@ class _ScoreHeader extends StatelessWidget {
                   letterSpacing: 0.3,
                 ),
               ),
+              if (streak >= 2) ...[
+                const SizedBox(width: 8),
+                _StreakBadge(streak: streak),
+              ],
             ],
           ),
           const ResourceBar(),
         ],
+      ),
+    );
+  }
+}
+
+/// Peş peşe temizlik serisini gösteren küçük rozet
+/// (bkz. [GameState.clearStreak] — "peşpeşe patlatmalarda bonus" isteği).
+class _StreakBadge extends StatelessWidget {
+  const _StreakBadge({required this.streak});
+
+  final int streak;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(streak),
+      tween: Tween(begin: 1.3, end: 1.0),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF6B4A).withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFFFF6B4A).withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(
+          '🔥 SERİ x$streak',
+          style: const TextStyle(
+            color: Color(0xFFFF9B7A),
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Depo binası seviyesine bağlı "geri al" hakkını gösterir ve kullandırır
+/// (bkz. docs/GDD.md, Bölüm 3 — Depo binasının gerçek oyun içi etkisi).
+class _UndoBar extends ConsumerWidget {
+  const _UndoBar({required this.remaining});
+
+  final int remaining;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (remaining <= 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => ref.read(gameControllerProvider.notifier).undo(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: BoardScreen._panel,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: BoardScreen._panelLine),
+              ),
+              child: Text(
+                '↩️ Geri Al ($remaining)',
+                style: const TextStyle(
+                  color: BoardScreen._ink,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -486,11 +575,33 @@ class _TraySlot extends ConsumerWidget {
   final int trayIndex;
   final Piece? piece;
 
+  static const double _slotSize = 80;
+
+  /// Sürüklerken parçayı parmağın üzerine değil, biraz yukarısına
+  /// kaldırır — böylece elin tahtanın hedef hücrelerini kapatmaz
+  /// ("parçaların hareket ettirilişi kolay olsun" isteği). Hem görsel
+  /// geri bildirim (bkz. [_DragFeedback]) hem de hayalet önizleme/bırakma
+  /// hesabı ([_BoardGridState._cellAt]) aynı kaldırma miktarını kullanır,
+  /// böylece gördüğün yer ile bıraktığın yer birebir eşleşir.
+  static const Offset dragLift = Offset(0, -72);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (piece == null) return const SizedBox(width: 80, height: 80);
+    if (piece == null) {
+      return const SizedBox(width: _slotSize, height: _slotSize);
+    }
 
     final preview = _PiecePreview(piece: piece!, cellSize: 20);
+    // Küçük parçaların (ör. tek hücreli) önizlemesi çok küçük olabiliyor;
+    // tutma/sürükleme alanını her zaman tüm tepsi hücresi kadar (80x80)
+    // büyütmek için görünmez ama isabet testine giren bir kutu içine
+    // alıyoruz — parmakla tutması zorlaşmasın diye.
+    final hitArea = Container(
+      width: _slotSize,
+      height: _slotSize,
+      color: Colors.transparent,
+      child: Center(child: preview),
+    );
 
     void clearHover() {
       final current = ref.read(dragHoverProvider);
@@ -501,17 +612,20 @@ class _TraySlot extends ConsumerWidget {
 
     return Draggable<int>(
       data: trayIndex,
-      feedback: _DragFeedback(piece: piece!),
-      childWhenDragging: Opacity(opacity: 0.3, child: preview),
+      feedback: Transform.translate(
+        offset: dragLift,
+        child: _DragFeedback(piece: piece!),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: hitArea),
       onDragUpdate: (details) {
         ref.read(dragHoverProvider.notifier).state = DragHoverInfo(
           trayIndex: trayIndex,
-          globalPosition: details.globalPosition,
+          globalPosition: details.globalPosition + dragLift,
         );
       },
       onDragEnd: (_) => clearHover(),
       onDraggableCanceled: (_, _) => clearHover(),
-      child: preview,
+      child: hitArea,
     );
   }
 }

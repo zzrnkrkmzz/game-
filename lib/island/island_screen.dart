@@ -110,7 +110,9 @@ class _BiomeHeader extends StatelessWidget {
                       biome.accentColor.withValues(alpha: 0.12),
                     ],
                   ),
-                  border: Border.all(color: biome.accentColor.withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: biome.accentColor.withValues(alpha: 0.5),
+                  ),
                 ),
                 child: Center(
                   child: Text(biome.icon, style: const TextStyle(fontSize: 22)),

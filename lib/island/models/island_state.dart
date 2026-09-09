@@ -5,9 +5,8 @@ import 'building_type.dart';
 class IslandState {
   const IslandState({required this.levels});
 
-  factory IslandState.initial() => IslandState(
-    levels: {for (final type in BuildingType.values) type: 0},
-  );
+  factory IslandState.initial() =>
+      IslandState(levels: {for (final type in BuildingType.values) type: 0});
 
   final Map<BuildingType, int> levels;
 

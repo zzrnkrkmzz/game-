@@ -40,15 +40,18 @@ void main() {
       expect(controller.state.hasClearedFirstLine, isTrue);
     });
 
-    test('ilk satır temizlendikten sonra recordMove hiçbir şeyi değiştirmez', () {
-      final controller = OnboardingController();
-      controller.recordLineCleared();
-      controller.consumeNavigationRequest();
-      final before = controller.state;
+    test(
+      'ilk satır temizlendikten sonra recordMove hiçbir şeyi değiştirmez',
+      () {
+        final controller = OnboardingController();
+        controller.recordLineCleared();
+        controller.consumeNavigationRequest();
+        final before = controller.state;
 
-      controller.recordMove();
+        controller.recordMove();
 
-      expect(controller.state, same(before));
-    });
+        expect(controller.state, same(before));
+      },
+    );
   });
 }

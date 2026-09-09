@@ -27,13 +27,15 @@ class PieceGenerator {
   /// Herhangi bir biyomda bir parçanın bonus blok olma olasılığı.
   static const double bonusChance = 0.08;
 
-  /// Küçük parçalara (1-3 hücre) daha yüksek, büyük parçalara (4-5 hücre)
-  /// daha düşük ağırlık verir.
+  /// Küçük parçalara (1-3 hücre) daha yüksek, büyük parçalara daha düşük
+  /// ağırlık verir. 6+ hücreli dev parçalar (bkz. [PieceShapes.bigSquare])
+  /// en nadir gelenlerdir — tahtayı hızlıca doldurmasınlar diye.
   int _weightOf(PieceShape shape) => switch (shape.length) {
     <= 2 => 5,
     3 => 4,
     4 => 3,
-    _ => 2,
+    5 => 2,
+    _ => 1,
   };
 
   PieceShape _pickWeightedShape() {
@@ -71,7 +73,8 @@ class PieceGenerator {
       (_) => _randomPiece(iceEnabled: iceEnabled),
     );
 
-    final needsSafetyNet = board.fillRatio >= antiFrustrationThreshold &&
+    final needsSafetyNet =
+        board.fillRatio >= antiFrustrationThreshold &&
         !tray.any(board.canPlaceAnywhere);
 
     if (needsSafetyNet) {

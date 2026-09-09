@@ -75,7 +75,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     ref.listen<OnboardingState>(onboardingControllerProvider, (previous, next) {
       if (next.navigateToIslandRequested) {
-        ref.read(onboardingControllerProvider.notifier).consumeNavigationRequest();
+        ref
+            .read(onboardingControllerProvider.notifier)
+            .consumeNavigationRequest();
         _goTo(1);
       }
     });

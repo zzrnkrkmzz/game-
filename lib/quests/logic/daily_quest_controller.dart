@@ -80,9 +80,11 @@ class DailyQuestController extends StateNotifier<DailyQuestState> {
     );
   }
 
-  void recordLinesCleared(int count) => _addProgress(QuestType.clearLines, count);
+  void recordLinesCleared(int count) =>
+      _addProgress(QuestType.clearLines, count);
 
-  void recordCellsPlaced(int count) => _addProgress(QuestType.placeCells, count);
+  void recordCellsPlaced(int count) =>
+      _addProgress(QuestType.placeCells, count);
 
   void recordBuildingUpgraded() => _addProgress(QuestType.upgradeBuilding, 1);
 

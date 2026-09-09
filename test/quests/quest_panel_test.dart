@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('showQuestPanel 3 görev ve seri sayacını gösterir', (tester) async {
+  testWidgets('showQuestPanel 3 görev ve seri sayacını gösterir', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
