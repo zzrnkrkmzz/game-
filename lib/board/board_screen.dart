@@ -7,6 +7,7 @@ import '../shared/resource_bar.dart';
 import 'logic/game_controller.dart';
 import 'models/block_color.dart';
 import 'models/piece.dart';
+import 'models/placed_block.dart';
 
 /// Çekirdek oyun ekranı: 8x8 tahta + 3'lü parça tepsisi. Kaynak bakiyesi
 /// [ResourceBar] üzerinden Island ekranıyla paylaşılır (bkz. docs/GDD.md,
@@ -16,9 +17,12 @@ import 'models/piece.dart';
 class BoardScreen extends ConsumerStatefulWidget {
   const BoardScreen({super.key});
 
-  static const _background = Color(0xFF0E2033);
+  static const _bgTop = Color(0xFF122A42);
+  static const _bgBottom = Color(0xFF0A1B2C);
   static const _panel = Color(0xFF16304A);
+  static const _panelLine = Color(0x1FFFFFFF);
   static const _ink = Color(0xFFEFE6D3);
+  static const _amber = Color(0xFFFFC96B);
 
   @override
   ConsumerState<BoardScreen> createState() => _BoardScreenState();
@@ -55,43 +59,51 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
     final onboarding = ref.watch(onboardingControllerProvider);
 
     return Scaffold(
-      backgroundColor: BoardScreen._background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  _ScoreHeader(score: state.score),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: Center(
-                      child: AspectRatio(aspectRatio: 1, child: _BoardGrid()),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [BoardScreen._bgTop, BoardScreen._bgBottom],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    _ScoreHeader(score: state.score),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: Center(
+                        child: AspectRatio(aspectRatio: 1, child: _BoardGrid()),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const _PieceTray(),
+                    if (onboarding.showMoveHint) const _MoveHint(),
+                    const SizedBox(height: 8),
+                    if (state.isGameOver) _GameOverBanner(score: state.score),
+                  ],
+                ),
+                Align(
+                  alignment: const Alignment(0, -0.55),
+                  child: IgnorePointer(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: _popupText == null
+                          ? const SizedBox.shrink(key: ValueKey('empty'))
+                          : _ScorePopup(
+                              key: ValueKey(_popupSeq),
+                              text: _popupText!,
+                            ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const _PieceTray(),
-                  if (onboarding.showMoveHint) const _MoveHint(),
-                  const SizedBox(height: 8),
-                  if (state.isGameOver) _GameOverBanner(score: state.score),
-                ],
-              ),
-              Align(
-                alignment: const Alignment(0, -0.55),
-                child: IgnorePointer(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: _popupText == null
-                        ? const SizedBox.shrink(key: ValueKey('empty'))
-                        : _ScorePopup(
-                            key: ValueKey(_popupSeq),
-                            text: _popupText!,
-                          ),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -159,19 +171,42 @@ class _ScoreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'SKOR $score',
-          style: const TextStyle(
-            color: Color(0xFFFFC96B),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: BoardScreen._panel,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: BoardScreen._panelLine),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-        ),
-        const ResourceBar(),
-      ],
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🏆', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(
+                'SKOR $score',
+                style: const TextStyle(
+                  color: BoardScreen._amber,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 19,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const ResourceBar(),
+        ],
+      ),
     );
   }
 }
@@ -215,11 +250,18 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF12293F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: const Color(0xFF0F2439),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: BoardScreen._panelLine),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
@@ -259,35 +301,102 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
               });
             },
             builder: (context, candidates, rejects) {
-              Color cellColor = Colors.white.withValues(alpha: 0.05);
-              if (block != null) cellColor = block.color.displayColor;
-              if (isInFootprint) {
-                cellColor = footprintValid
-                    ? (hoveredPiece?.color.displayColor ?? Colors.white)
-                          .withValues(alpha: 0.55)
-                    : Colors.red.withValues(alpha: 0.4);
-              }
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                decoration: BoxDecoration(
-                  color: cellColor,
-                  borderRadius: BorderRadius.circular(4),
-                  border: block != null && block.isIce
-                      ? Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2)
-                      : null,
-                ),
-                child: block != null && block.isBonus
-                    ? const Center(
-                        child: Text('★', style: TextStyle(fontSize: 12, color: Colors.white)),
-                      )
-                    : (block != null && block.isIce
-                          ? const Center(child: Text('❄', style: TextStyle(fontSize: 12)))
-                          : null),
+              return _BoardCell(
+                block: block,
+                isInFootprint: isInFootprint,
+                footprintValid: footprintValid,
+                footprintColor: hoveredPiece?.color.displayColor,
               );
             },
           );
         },
       ),
+    );
+  }
+}
+
+/// Tahtadaki tek bir hücrenin görünümü — dolu hücreler hafif "kabartma"
+/// (gradyan + üst kenar parlaması) hissi verecek şekilde çiziliyor.
+class _BoardCell extends StatelessWidget {
+  const _BoardCell({
+    required this.block,
+    required this.isInFootprint,
+    required this.footprintValid,
+    required this.footprintColor,
+  });
+
+  final PlacedBlock? block;
+  final bool isInFootprint;
+  final bool footprintValid;
+  final Color? footprintColor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isInFootprint) {
+      final color = footprintValid
+          ? (footprintColor ?? Colors.white).withValues(alpha: 0.55)
+          : Colors.red.withValues(alpha: 0.4);
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: (footprintValid ? Colors.white : Colors.red)
+                .withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+        ),
+      );
+    }
+
+    if (block == null) {
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+      );
+    }
+
+    final base = block!.color.displayColor;
+    final isIce = block!.isIce;
+    final isBonus = block!.isBonus;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(base, Colors.white, 0.22)!,
+            base,
+            Color.lerp(base, Colors.black, 0.12)!,
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ),
+        border: isIce
+            ? Border.all(color: Colors.white.withValues(alpha: 0.85), width: 2)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: isBonus
+          ? const Center(
+              child: Text('★', style: TextStyle(fontSize: 12, color: Colors.white)),
+            )
+          : (isIce
+                ? const Center(child: Text('❄', style: TextStyle(fontSize: 12)))
+                : null),
     );
   }
 }
@@ -299,14 +408,29 @@ class _PieceTray extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(gameControllerProvider);
 
-    return SizedBox(
-      height: 90,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          for (var i = 0; i < state.tray.length; i++)
-            _TraySlot(trayIndex: i, piece: state.tray[i]),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: BoardScreen._panel,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: BoardScreen._panelLine),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
+      ),
+      child: SizedBox(
+        height: 80,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            for (var i = 0; i < state.tray.length; i++)
+              _TraySlot(trayIndex: i, piece: state.tray[i]),
+          ],
+        ),
       ),
     );
   }
@@ -386,11 +510,25 @@ class _PiecePreview extends StatelessWidget {
               height: cellSize - 2,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: piece.color.displayColor,
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color.lerp(piece.color.displayColor, Colors.white, 0.22)!,
+                      piece.color.displayColor,
+                    ],
+                  ),
                   border: piece.isIce
                       ? Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2)
                       : null,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
                 child: piece.isBonus
                     ? const Center(

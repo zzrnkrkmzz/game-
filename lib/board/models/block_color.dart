@@ -27,4 +27,12 @@ extension ResourceTypeX on ResourceType {
     ResourceType.stone => '🪨',
     ResourceType.crystal => '💎',
   };
+
+  /// Kaynağı temizlediği blok rengiyle eşleşen görsel renk — bkz.
+  /// [BlockColorX.resource] (ters eşleme).
+  Color get displayColor => switch (this) {
+    ResourceType.wood => BlockColor.coral.displayColor,
+    ResourceType.stone => BlockColor.seafoam.displayColor,
+    ResourceType.crystal => BlockColor.amber.displayColor,
+  };
 }
