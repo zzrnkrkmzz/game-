@@ -103,4 +103,57 @@ void main() {
 
     expect(container.read(gameControllerProvider).score, greaterThan(0));
   });
+
+  testWidgets(
+    'sürüklerken parçanın tüm gövdesi hayalet önizleme olarak vurgulanır',
+    (tester) async {
+      // seed=1 ile tepsideki ilk parça 3 hücreli (coral, (0,0)(1,0)(1,1)) —
+      // bkz. test/board/piece_generator_test.dart benzeri sabitleme.
+      final container = ProviderContainer(
+        overrides: [
+          gameControllerProvider.overrideWith(
+            (ref) => GameController(generator: PieceGenerator(random: Random(1))),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: BoardScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final draggedPiece = container.read(gameControllerProvider).tray[0]!;
+      final draggable = find.byType(Draggable<int>).first;
+      final target = find.byType(DragTarget<int>).first;
+      final start = tester.getCenter(draggable) + const Offset(3, 3);
+      final end = tester.getCenter(target);
+
+      final gesture = await tester.startGesture(start);
+      await tester.pump(const Duration(milliseconds: 20));
+      const steps = 6;
+      for (var i = 1; i <= steps; i++) {
+        await gesture.moveTo(Offset.lerp(start, end, i / steps)!);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      // Henüz bırakılmadı — sadece hover halindeyiz.
+      await tester.pump();
+
+      final decorations = tester
+          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .map((w) => (w.decoration! as BoxDecoration).color!)
+          .toList();
+      final highlightedCount = decorations.where((c) => c.a > 0.1).length;
+
+      expect(highlightedCount, draggedPiece.cellCount);
+      expect(draggedPiece.cellCount, greaterThan(1));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 950));
+    },
+  );
 }

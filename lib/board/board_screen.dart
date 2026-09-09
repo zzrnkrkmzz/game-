@@ -194,6 +194,26 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
     final state = ref.watch(gameControllerProvider);
     final size = state.board.size;
 
+    // Sürüklenen parçanın tüm gövdesinin nereye oturacağını gösteren
+    // "hayalet" önizleme — sadece imlecin altındaki tek hücre değil,
+    // parçanın kaplayacağı bütün hücreler vurgulanır.
+    Piece? hoveredPiece;
+    final footprint = <int>{};
+    var footprintValid = false;
+    if (_hoveredTrayIndex != null && _hoveredRow != null && _hoveredCol != null) {
+      hoveredPiece = state.tray[_hoveredTrayIndex!];
+      if (hoveredPiece != null) {
+        footprintValid = controller.canPlace(_hoveredTrayIndex!, _hoveredRow!, _hoveredCol!);
+        for (final cell in hoveredPiece.shape) {
+          final r = _hoveredRow! + cell.row;
+          final c = _hoveredCol! + cell.col;
+          if (r >= 0 && r < size && c >= 0 && c < size) {
+            footprint.add(r * size + c);
+          }
+        }
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -213,10 +233,7 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
           final row = index ~/ size;
           final col = index % size;
           final block = state.board.cellAt(row, col);
-          final isHovered =
-              _hoveredRow == row && _hoveredCol == col && _hoveredTrayIndex != null;
-          final isValidHover = isHovered &&
-              controller.canPlace(_hoveredTrayIndex!, row, col);
+          final isInFootprint = footprint.contains(index);
 
           return DragTarget<int>(
             onWillAcceptWithDetails: (details) {
@@ -244,10 +261,11 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
             builder: (context, candidates, rejects) {
               Color cellColor = Colors.white.withValues(alpha: 0.05);
               if (block != null) cellColor = block.color.displayColor;
-              if (isHovered) {
-                cellColor = isValidHover
-                    ? Colors.white.withValues(alpha: 0.35)
-                    : Colors.red.withValues(alpha: 0.35);
+              if (isInFootprint) {
+                cellColor = footprintValid
+                    ? (hoveredPiece?.color.displayColor ?? Colors.white)
+                          .withValues(alpha: 0.55)
+                    : Colors.red.withValues(alpha: 0.4);
               }
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
@@ -308,9 +326,41 @@ class _TraySlot extends StatelessWidget {
 
     return Draggable<int>(
       data: trayIndex,
-      feedback: _PiecePreview(piece: piece!, cellSize: 28),
+      feedback: _DragFeedback(piece: piece!),
       childWhenDragging: Opacity(opacity: 0.3, child: preview),
       child: preview,
+    );
+  }
+}
+
+/// Parça sürüklenmeye başlayınca elde büyüyüp hafifçe zıplayan (pop)
+/// görünüm — "tutunca büyüsün" geri bildirimi.
+class _DragFeedback extends StatelessWidget {
+  const _DragFeedback({required this.piece});
+
+  final Piece piece;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.7, end: 1.0),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 14,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: _PiecePreview(piece: piece, cellSize: 30),
+      ),
     );
   }
 }
