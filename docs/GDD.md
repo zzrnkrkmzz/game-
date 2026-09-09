@@ -1,6 +1,6 @@
 # Ada Blast — Oyun Tasarım Dokümanı (GDD)
 
-**Versiyon**: 0.1 · **Durum**: Taslak — Faz 1 (Çekirdek Prototip) öncesi onay bekliyor
+**Versiyon**: 0.3 · **Durum**: Faz 1-3 uygulandı (çekirdek prototip, Ada ekranı, biyom/görev/koleksiyon sistemleri) — Faz 4 (Monetizasyon) bekliyor
 **Çalışma adı**: Ada Blast (kesinleşmemiş)
 
 ---
@@ -54,20 +54,24 @@ Ayrı bir "Ada" ekranında, kazanılan kaynaklarla bina inşa edilir/yükseltili
 
 ## 4. Tema/Biyom İlerlemesi ve Koleksiyon
 
-- Ada seviye eşiklerinde biyom değişir: **Orman → Çöl → Kar → Uzay** (sıralama ve sayı prototipte ayarlanabilir).
-- Her biyomun kendi blok/parça görsel skini ve 1-2 özel mekaniği vardır. Örnekler:
-  - **Buz bloğu** (Kar biyomu): temizlenmesi için 2 vuruş gerekir.
-  - **Bonus blok** (her biyomda düşük olasılıkla çıkabilir): temizlenince ekstra ödül verir.
-- **Koleksiyon albümü**: karakterler, dekorasyonlar ve skin'ler toplanır; günlük görevler ve seviye atlama ile açılır.
+**Durum: Faz 3'te uygulandı** (`lib/island/models/biome.dart`, `lib/board/models/placed_block.dart`, `lib/collection/`).
+
+- Ada seviye eşiklerinde biyom değişir: **Orman (0-4) → Çöl (5-9) → Kar (10-14) → Uzay (15-20)** toplam bina seviyesine göre (tüm bina seviyelerinin toplamı, `IslandState.totalLevel`).
+- **Buz bloğu** (Kar ve Uzay biyomunda, tepside %15 olasılıkla): `PlacedBlock` modeli her hücreye bir "dayanıklılık" (remainingHits) değeri ekler. Normal blok 1 vuruşta (satırı/sütunu tamamlayan ilk temizlikte), buz bloğu 2 vuruşta temizlenir — satır/sütun ilk tamamlanışında sadece 1 hasar alır ve kalır, skor/kombo yine de sayılır.
+- **Bonus blok** (her biyomda %8 olasılıkla): tamamen temizlendiğinde normal 1 kaynağa ek olarak +3 ekstra kaynak verir.
+- Basitleştirme notu: buz/bonus özelliği prototipte hücre bazlı değil, **parça bazlı** uygulandı (parçanın tüm hücreleri aynı özel türde) — gerçek sanat/asset aşamasında hücre bazlı hale getirilmesi değerlendirilebilir.
+- **Koleksiyon albümü** (`lib/collection/`): 11 öge (9'u ada toplam seviyesine, 2'si görev serisine bağlı) — emoji + isimle temsil ediliyor, gerçek sanat varlıkları ileri fazda eklenecek. Kilitli ögeler "???" olarak gösterilir.
 
 ---
 
 ## 5. Retention Mekanikleri
 
-- **Günlük giriş ödülü** ve **günlük görevler** (örn. "4 satır temizle", "1 bina yükselt").
-- **Seri (streak) sistemi**: art arda giriş yapmayı nazikçe ödüllendirir.
-- **Liderlik tablosu**: haftalık sıfırlanan, cezasız, asenkron sıralama (arkadaşlar + global). Gerçek zamanlı PvP yoktur, stres yaratmaz.
-- **Bildirimler**: "adan seni bekliyor" tonunda nazik geri çağırma — agresif/sık bildirim yok.
+**Durum: Günlük görevler ve seri Faz 3'te uygulandı** (`lib/quests/`); liderlik tablosu ve push bildirimleri backend/native entegrasyonu gerektirdiği için ileri faza bırakıldı.
+
+- **Günlük görevler**: her gün 5 görev türünden (satır temizle, blok yerleştir, bina yükselt, puan topla, tur bitir) rastgele 3'ü seçilir, hedefleri de aralık içinden rastgele belirlenir. İlerleme, Board ve Island ekranlarındaki aksiyonlardan otomatik olarak beslenir.
+- **Seri (streak) sistemi**: bir günün tüm görevleri tamamlanınca seri 1 artar; bir gün atlanırsa (görevler tamamlanmadan gün değişirse) seri sıfırlanır. *Not: gün değişimi şu an yalnızca uygulama açılışında kontrol ediliyor — kalıcı depolama (Hive) eklenene kadar tam bir "günlük giriş" akışı değil.*
+- **Liderlik tablosu**: haftalık sıfırlanan, cezasız, asenkron sıralama (arkadaşlar + global). Gerçek zamanlı PvP yoktur, stres yaratmaz. *(Henüz uygulanmadı — backend/kimlik doğrulama gerektiriyor.)*
+- **Bildirimler**: "adan seni bekliyor" tonunda nazik geri çağırma — agresif/sık bildirim yok. *(Henüz uygulanmadı — native push altyapısı Faz 4+ ile birlikte.)*
 
 ---
 
@@ -189,16 +193,16 @@ Tam renk körlüğü modu (seçilebilir palet) ve ekran okuyucu desteği gibi ge
 
 ## 13. Fazlı Yol Haritası (Roadmap)
 
-| Faz | İçerik |
-|---|---|
-| 0 | **GDD** (bu doküman) — onaylandı |
-| 1 | Çekirdek block-blast prototipi (grid, parça yerleştirme, skor) — oynanabilir dikey dilim |
-| 2 | Kaynak üretimi + temel Ada ekranı (3-5 bina) |
-| 3 | Tema/biyom ilerlemesi, koleksiyon, günlük görevler |
-| 4 | Monetizasyon entegrasyonu (reklam + IAP + Ada Pass) |
-| 5 | Cilalama: animasyon, ses, haptik, onboarding/tutorial |
-| 6 | Mağaza hazırlığı: ikon, ekran görüntüleri, gizlilik politikası, yaş derecelendirmesi, Firebase kurulumu, yasal checklist |
-| 7 | Soft launch → geri bildirim → global lansman |
+| Faz | İçerik | Durum |
+|---|---|---|
+| 0 | **GDD** (bu doküman) | ✅ Tamamlandı |
+| 1 | Çekirdek block-blast prototipi (grid, parça yerleştirme, skor) — oynanabilir dikey dilim | ✅ Tamamlandı |
+| 2 | Kaynak üretimi + temel Ada ekranı (3-5 bina) | ✅ Tamamlandı |
+| 3 | Tema/biyom ilerlemesi, koleksiyon, günlük görevler | ✅ Tamamlandı |
+| 4 | Monetizasyon entegrasyonu (reklam + IAP + Ada Pass) | ⏳ Sırada |
+| 5 | Cilalama: animasyon, ses, haptik, onboarding/tutorial | Bekliyor |
+| 6 | Mağaza hazırlığı: ikon, ekran görüntüleri, gizlilik politikası, yaş derecelendirmesi, Firebase kurulumu, yasal checklist | Bekliyor |
+| 7 | Soft launch → geri bildirim → global lansman | Bekliyor |
 
 ---
 

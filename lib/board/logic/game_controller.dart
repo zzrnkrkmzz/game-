@@ -1,10 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../island/logic/island_controller.dart';
+import '../../island/models/biome.dart';
+import '../../quests/logic/daily_quest_controller.dart';
 import '../../shared/resource_wallet.dart';
 import '../models/block_color.dart';
 import '../models/board_state.dart';
 import '../models/piece.dart';
 import 'piece_generator.dart';
+
+/// Board modülünün Island/Quest modüllerine sıkı bağımlı olmaması için
+/// [GameController], bu modüllerin somut sınıflarını değil yalnızca
+/// ihtiyaç duyduğu fonksiyon imzalarını (callback) alır — bkz. sabit
+/// [onResourcesGained] deseni. `IslandController`/`DailyQuestController`
+/// importları yalnızca [gameControllerProvider]'ın bu callback'leri
+/// bağlamak için ihtiyaç duyduğu provider referanslarını okumak içindir.
 
 /// Bir turun tüm durumu: tahta, tepsideki parçalar, skor ve oyun sonu
 /// bilgisi. Kaynak bakiyesi burada değil, [ResourceWallet]'ta tutulur —
@@ -53,18 +63,36 @@ class GameController extends StateNotifier<GameState> {
     PieceGenerator? generator,
     int boardSize = 8,
     void Function(Map<ResourceType, int> gained)? onResourcesGained,
+    bool Function()? isIceBiomeEnabled,
+    void Function(int linesCleared)? onLinesCleared,
+    void Function(int cellsPlaced)? onCellsPlaced,
+    void Function(int score)? onScoreGained,
+    void Function()? onRoundFinished,
   }) : _generator = generator ?? PieceGenerator(),
        _onResourcesGained = onResourcesGained ?? ((_) {}),
+       _isIceBiomeEnabled = isIceBiomeEnabled ?? (() => false),
+       _onLinesCleared = onLinesCleared ?? ((_) {}),
+       _onCellsPlaced = onCellsPlaced ?? ((_) {}),
+       _onScoreGained = onScoreGained ?? ((_) {}),
+       _onRoundFinished = onRoundFinished ?? (() {}),
        super(GameState.initial(BoardState(size: boardSize), const [])) {
     _startNewGame(boardSize);
   }
 
   final PieceGenerator _generator;
   final void Function(Map<ResourceType, int> gained) _onResourcesGained;
+  final bool Function() _isIceBiomeEnabled;
+  final void Function(int linesCleared) _onLinesCleared;
+  final void Function(int cellsPlaced) _onCellsPlaced;
+  final void Function(int score) _onScoreGained;
+  final void Function() _onRoundFinished;
 
   void _startNewGame(int boardSize) {
     final board = BoardState(size: boardSize);
-    final tray = _generator.generateTray(board);
+    final tray = _generator.generateTray(
+      board,
+      iceEnabled: _isIceBiomeEnabled(),
+    );
     state = GameState.initial(board, tray);
   }
 
@@ -90,13 +118,20 @@ class GameController extends StateNotifier<GameState> {
     newTray[trayIndex] = null;
 
     _onResourcesGained(result.resourcesGained);
+    _onCellsPlaced(result.cellsPlaced);
+    _onScoreGained(result.scoreGained);
+    if (result.linesCleared > 0) _onLinesCleared(result.linesCleared);
 
     final trayEmpty = newTray.every((p) => p == null);
-    final refilledTray = trayEmpty ? _generator.generateTray(board) : newTray;
+    final refilledTray = trayEmpty
+        ? _generator.generateTray(board, iceEnabled: _isIceBiomeEnabled())
+        : newTray;
 
     final isGameOver = refilledTray
         .whereType<Piece>()
         .every((p) => !board.canPlaceAnywhere(p));
+
+    if (isGameOver && !state.isGameOver) _onRoundFinished();
 
     state = state.copyWith(
       board: board,
@@ -112,5 +147,11 @@ final gameControllerProvider =
     StateNotifierProvider<GameController, GameState>(
       (ref) => GameController(
         onResourcesGained: ref.read(resourceWalletProvider.notifier).deposit,
+        isIceBiomeEnabled: () =>
+            ref.read(islandControllerProvider).biome.hasIceBlocks,
+        onLinesCleared: ref.read(dailyQuestControllerProvider.notifier).recordLinesCleared,
+        onCellsPlaced: ref.read(dailyQuestControllerProvider.notifier).recordCellsPlaced,
+        onScoreGained: ref.read(dailyQuestControllerProvider.notifier).recordScore,
+        onRoundFinished: ref.read(dailyQuestControllerProvider.notifier).recordRoundFinished,
       ),
     );

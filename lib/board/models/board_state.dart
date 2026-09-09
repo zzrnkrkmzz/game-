@@ -1,5 +1,6 @@
 import 'block_color.dart';
 import 'piece.dart';
+import 'placed_block.dart';
 
 /// Bir parça yerleştirmenin sonucu: kaç hücre doldu, kaç satır/sütun
 /// temizlendi ve bu temizlik sonucu hangi kaynaklardan ne kadar kazanıldı.
@@ -17,19 +18,24 @@ class PlacementResult {
   final Map<ResourceType, int> resourcesGained;
 }
 
-/// 8x8 oyun tahtası. Her hücre boşsa `null`, doluysa o hücreyi dolduran
-/// [BlockColor] değerini tutar (bkz. docs/GDD.md, Bölüm 2).
+/// 8x8 oyun tahtası. Her hücre boşsa `null`, doluysa o hücredeki
+/// [PlacedBlock]'u tutar (bkz. docs/GDD.md, Bölüm 2 ve Bölüm 4 - buz/bonus
+/// blok mekaniği).
 class BoardState {
   BoardState({int size = 8})
     : size = size,
-      _cells = List.generate(size, (_) => List<BlockColor?>.filled(size, null));
+      _cells = List.generate(size, (_) => List<PlacedBlock?>.filled(size, null));
 
   BoardState._fromCells(this._cells) : size = _cells.length;
 
-  final int size;
-  final List<List<BlockColor?>> _cells;
+  /// Bir bonus hücre tamamen temizlendiğinde normal 1 kaynağa ek olarak
+  /// verilen ekstra miktar (bkz. docs/GDD.md, Bölüm 4 - "bonus blok").
+  static const int bonusExtraResource = 3;
 
-  BlockColor? cellAt(int row, int col) => _cells[row][col];
+  final int size;
+  final List<List<PlacedBlock?>> _cells;
+
+  PlacedBlock? cellAt(int row, int col) => _cells[row][col];
 
   int get filledCellCount =>
       _cells.expand((row) => row).where((c) => c != null).length;
@@ -38,7 +44,7 @@ class BoardState {
   double get fillRatio => filledCellCount / (size * size);
 
   BoardState copy() =>
-      BoardState._fromCells(_cells.map((row) => List<BlockColor?>.from(row)).toList());
+      BoardState._fromCells(_cells.map((row) => List<PlacedBlock?>.from(row)).toList());
 
   /// [piece], (anchorRow, anchorCol) konumuna tahtanın sınırları içinde ve
   /// dolu hücreyle çakışmadan yerleştirilebiliyorsa `true` döner.
@@ -63,14 +69,23 @@ class BoardState {
   }
 
   /// [piece]'i (anchorRow, anchorCol) konumuna yerleştirir, tamamlanan
-  /// satır/sütunları temizler ve kazanılan skor + kaynakları döner.
+  /// satır/sütunları işler ve kazanılan skor + kaynakları döner.
+  ///
+  /// Buz bloklarının (bkz. [PlacedBlock.isIce]) bulunduğu bir satır/sütun
+  /// tamamlansa bile o hücre hemen kaybolmaz — yalnızca bir vuruş alır;
+  /// tamamen temizlenmesi (ve kaynak vermesi) ikinci tamamlanışta olur.
+  /// Skor açısından ise satır/sütun her tamamlanışında sayılır (buz hücre
+  /// tam temizlenmemiş olsa bile).
   ///
   /// Çağırmadan önce [canPlace] ile doğrulanmalıdır.
   PlacementResult place(Piece piece, int anchorRow, int anchorCol) {
     assert(canPlace(piece, anchorRow, anchorCol), 'Geçersiz yerleştirme');
 
+    final placedBlock = piece.isIce
+        ? PlacedBlock.ice(piece.color)
+        : PlacedBlock.normal(piece.color, isBonus: piece.isBonus);
     for (final cell in piece.shape) {
-      _cells[anchorRow + cell.row][anchorCol + cell.col] = piece.color;
+      _cells[anchorRow + cell.row][anchorCol + cell.col] = placedBlock;
     }
 
     final fullRows = <int>[
@@ -82,39 +97,36 @@ class BoardState {
         if (_cells.every((row) => row[c] != null)) c,
     ];
 
+    final completedCoords = <(int, int)>{};
+    for (final r in fullRows) {
+      for (var c = 0; c < size; c++) {
+        completedCoords.add((r, c));
+      }
+    }
+    for (final c in fullCols) {
+      for (var r = 0; r < size; r++) {
+        completedCoords.add((r, c));
+      }
+    }
+
     final resourcesGained = <ResourceType, int>{};
-    final clearedCoords = <(int, int)>{};
-
-    for (final r in fullRows) {
-      for (var c = 0; c < size; c++) {
-        clearedCoords.add((r, c));
-      }
-    }
-    for (final c in fullCols) {
-      for (var r = 0; r < size; r++) {
-        clearedCoords.add((r, c));
-      }
+    void addResource(ResourceType type, int amount) {
+      resourcesGained.update(type, (v) => v + amount, ifAbsent: () => amount);
     }
 
-    for (final (r, c) in clearedCoords) {
-      final color = _cells[r][c];
-      if (color != null) {
-        resourcesGained.update(
-          color.resource,
-          (v) => v + 1,
-          ifAbsent: () => 1,
-        );
-      }
-    }
+    for (final (r, c) in completedCoords) {
+      final block = _cells[r][c];
+      if (block == null) continue;
 
-    for (final r in fullRows) {
-      for (var c = 0; c < size; c++) {
-        _cells[r][c] = null;
-      }
-    }
-    for (final c in fullCols) {
-      for (var r = 0; r < size; r++) {
-        _cells[r][c] = null;
+      final afterHit = block.hit();
+      _cells[r][c] = afterHit;
+
+      if (afterHit == null) {
+        // Hücre tamamen temizlendi — kaynağını ver.
+        addResource(block.color.resource, 1);
+        if (block.isBonus) {
+          addResource(block.color.resource, bonusExtraResource);
+        }
       }
     }
 

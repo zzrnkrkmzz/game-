@@ -110,7 +110,7 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
         itemBuilder: (context, index) {
           final row = index ~/ size;
           final col = index % size;
-          final color = state.board.cellAt(row, col);
+          final block = state.board.cellAt(row, col);
           final isHovered =
               _hoveredRow == row && _hoveredCol == col && _hoveredTrayIndex != null;
           final isValidHover = isHovered &&
@@ -141,7 +141,7 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
             },
             builder: (context, candidates, rejects) {
               Color cellColor = Colors.white.withValues(alpha: 0.05);
-              if (color != null) cellColor = color.displayColor;
+              if (block != null) cellColor = block.color.displayColor;
               if (isHovered) {
                 cellColor = isValidHover
                     ? Colors.white.withValues(alpha: 0.35)
@@ -152,7 +152,17 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
                 decoration: BoxDecoration(
                   color: cellColor,
                   borderRadius: BorderRadius.circular(4),
+                  border: block != null && block.isIce
+                      ? Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2)
+                      : null,
                 ),
+                child: block != null && block.isBonus
+                    ? const Center(
+                        child: Text('★', style: TextStyle(fontSize: 12, color: Colors.white)),
+                      )
+                    : (block != null && block.isIce
+                          ? const Center(child: Text('❄', style: TextStyle(fontSize: 12)))
+                          : null),
               );
             },
           );
@@ -226,7 +236,15 @@ class _PiecePreview extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: piece.color.displayColor,
                   borderRadius: BorderRadius.circular(3),
+                  border: piece.isIce
+                      ? Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2)
+                      : null,
                 ),
+                child: piece.isBonus
+                    ? const Center(
+                        child: Text('★', style: TextStyle(fontSize: 10, color: Colors.white)),
+                      )
+                    : null,
               ),
             ),
         ],

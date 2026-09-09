@@ -20,6 +20,13 @@ class PieceGenerator {
   static const double antiFrustrationThreshold = 0.75;
   static const int traySize = 3;
 
+  /// Kar biyomundan itibaren bir parçanın buz bloğu olma olasılığı
+  /// (bkz. docs/GDD.md, Bölüm 4).
+  static const double iceChance = 0.15;
+
+  /// Herhangi bir biyomda bir parçanın bonus blok olma olasılığı.
+  static const double bonusChance = 0.08;
+
   /// Küçük parçalara (1-3 hücre) daha yüksek, büyük parçalara (4-5 hücre)
   /// daha düşük ağırlık verir.
   int _weightOf(PieceShape shape) => switch (shape.length) {
@@ -43,12 +50,26 @@ class PieceGenerator {
   BlockColor _pickRandomColor() =>
       BlockColor.values[_random.nextInt(BlockColor.values.length)];
 
-  Piece _randomPiece() =>
-      Piece(shape: _pickWeightedShape(), color: _pickRandomColor());
+  Piece _randomPiece({bool iceEnabled = false}) {
+    final roll = _random.nextDouble();
+    final isIce = iceEnabled && roll < iceChance;
+    final isBonus = !isIce && roll < iceChance + bonusChance;
+    return Piece(
+      shape: _pickWeightedShape(),
+      color: _pickRandomColor(),
+      isIce: isIce,
+      isBonus: isBonus,
+    );
+  }
 
   /// [board]'un mevcut durumuna göre yeni bir tepsi (3 parça) üretir.
-  List<Piece> generateTray(BoardState board) {
-    final tray = List.generate(traySize, (_) => _randomPiece());
+  /// [iceEnabled] `true` ise (Kar biyomu ve sonrası) parçalar arasına
+  /// düşük olasılıkla buz bloğu karışabilir.
+  List<Piece> generateTray(BoardState board, {bool iceEnabled = false}) {
+    final tray = List.generate(
+      traySize,
+      (_) => _randomPiece(iceEnabled: iceEnabled),
+    );
 
     final needsSafetyNet = board.fillRatio >= antiFrustrationThreshold &&
         !tray.any(board.canPlaceAnywhere);

@@ -141,4 +141,60 @@ void main() {
       expect(board.canPlaceAnywhere(piece), isTrue);
     });
   });
+
+  group('BoardState.place — buz ve bonus blok mekaniği', () {
+    test('buz bloğu ilk satır tamamlanışında kaybolmaz, ikincide kaybolur', () {
+      final board = BoardState(size: 8);
+      board.place(
+        const Piece(shape: PieceShapes.single, color: BlockColor.coral, isIce: true),
+        0,
+        0,
+      );
+      for (var col = 1; col < 8; col++) {
+        board.place(
+          const Piece(shape: PieceShapes.single, color: BlockColor.coral),
+          0,
+          col,
+        );
+      }
+
+      // Satır tamamlandı (skor/kombo için sayılır) ama buz hücre kalıyor.
+      expect(board.cellAt(0, 0), isNotNull);
+      expect(board.cellAt(0, 0)!.isIce, isFalse); // 1 vuruş kaldı, artık "buz" değil
+      expect(board.cellAt(0, 1), isNull);
+
+      // Satırı tekrar doldurunca (col0 zaten dolu, col1-7'yi yeniden
+      // doldurmak satırı ikinci kez tamamlar) buz hücre de temizlenir.
+      PlacementResult? lastResult;
+      for (var col = 1; col < 8; col++) {
+        lastResult = board.place(
+          const Piece(shape: PieceShapes.single, color: BlockColor.coral),
+          0,
+          col,
+        );
+      }
+
+      expect(board.cellAt(0, 0), isNull);
+      expect(lastResult!.linesCleared, 1);
+    });
+
+    test('bonus blok tamamen temizlenince ekstra kaynak verir', () {
+      final board = BoardState(size: 8);
+      for (var col = 0; col < 7; col++) {
+        board.place(
+          const Piece(shape: PieceShapes.single, color: BlockColor.coral),
+          0,
+          col,
+        );
+      }
+      final result = board.place(
+        const Piece(shape: PieceShapes.single, color: BlockColor.coral, isBonus: true),
+        0,
+        7,
+      );
+
+      // 8 hücre * 1 (normal) + 3 (bonus ekstra) = 11.
+      expect(result.resourcesGained[ResourceType.wood], 11);
+    });
+  });
 }

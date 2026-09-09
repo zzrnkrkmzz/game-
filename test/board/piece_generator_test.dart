@@ -54,6 +54,40 @@ void main() {
 
       expect(piece.cellCount, 1);
     });
+
+    test('iceEnabled false iken hiçbir parça buz olmaz', () {
+      final generator = PieceGenerator(random: Random(3));
+      final board = BoardState(size: 8);
+
+      for (var i = 0; i < 300; i++) {
+        final tray = generator.generateTray(board, iceEnabled: false);
+        expect(tray.any((p) => p.isIce), isFalse);
+      }
+    });
+
+    test('iceEnabled true iken zaman içinde buzlu parça üretilir', () {
+      final generator = PieceGenerator(random: Random(3));
+      final board = BoardState(size: 8);
+
+      final anyIce = List.generate(
+        100,
+        (_) => generator.generateTray(board, iceEnabled: true),
+      ).any((tray) => tray.any((p) => p.isIce));
+
+      expect(anyIce, isTrue);
+    });
+
+    test('bir parça aynı anda hem buz hem bonus olamaz', () {
+      final generator = PieceGenerator(random: Random(5));
+      final board = BoardState(size: 8);
+
+      for (var i = 0; i < 300; i++) {
+        final tray = generator.generateTray(board, iceEnabled: true);
+        for (final piece in tray) {
+          expect(piece.isIce && piece.isBonus, isFalse);
+        }
+      }
+    });
   });
 }
 

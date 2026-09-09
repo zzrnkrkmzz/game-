@@ -5,17 +5,24 @@ import '../board/models/block_color.dart';
 import '../shared/resource_bar.dart';
 import '../shared/resource_wallet.dart';
 import 'logic/island_controller.dart';
+import 'models/biome.dart';
 import 'models/building_type.dart';
 
-/// Faz 2 Ada ekranı: kazanılan kaynaklarla bina inşa/yükseltme
-/// (bkz. docs/GDD.md, Bölüm 3 - Meta Katman: Üs/Ada Kurma).
+/// Faz 2-3 Ada ekranı: kazanılan kaynaklarla bina inşa/yükseltme ve
+/// toplam bina seviyesine göre değişen biyom göstergesi
+/// (bkz. docs/GDD.md, Bölüm 3 - Meta Katman: Üs/Ada Kurma, Bölüm 4 -
+/// Tema/Biyom İlerlemesi).
 class IslandScreen extends ConsumerWidget {
   const IslandScreen({super.key});
 
   static const _background = Color(0xFF0E2033);
+  static const _inkDim = Color(0xFF9FB6C7);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final island = ref.watch(islandControllerProvider);
+    final biome = island.biome;
+
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
@@ -27,10 +34,10 @@ class IslandScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    '🏝️ ADA',
+                  Text(
+                    '${biome.icon} ${biome.displayName.toUpperCase()}',
                     style: TextStyle(
-                      color: Color(0xFFEFE6D3),
+                      color: biome.accentColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
                     ),
@@ -38,7 +45,16 @@ class IslandScreen extends ConsumerWidget {
                   const ResourceBar(),
                 ],
               ),
-              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  biome.nextThreshold == null
+                      ? 'En üst biyoma ulaştın'
+                      : 'Sonraki biyom: ${island.totalLevel}/${biome.nextThreshold} toplam seviye',
+                  style: const TextStyle(color: _inkDim, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 16),
               Expanded(
                 child: ListView.separated(
                   itemCount: BuildingType.values.length,

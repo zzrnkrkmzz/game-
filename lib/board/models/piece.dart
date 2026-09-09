@@ -19,11 +19,23 @@ class Point<T extends num> {
 }
 
 /// Tepside oynanabilir bir parça: bir şekil + bir renk.
+///
+/// [isIce] ve [isBonus] tüm parçayı etkiler (parça içindeki her hücre aynı
+/// özel türde olur) — bu, gerçek oyunlardaki hücre bazlı buz/bonus
+/// bloklarının basitleştirilmiş bir versiyonudur (bkz. docs/GDD.md,
+/// Bölüm 4). Bir parça aynı anda hem buz hem bonus olamaz.
 class Piece {
-  const Piece({required this.shape, required this.color});
+  const Piece({
+    required this.shape,
+    required this.color,
+    this.isIce = false,
+    this.isBonus = false,
+  }) : assert(!(isIce && isBonus), 'Bir parça aynı anda buz ve bonus olamaz');
 
   final PieceShape shape;
   final BlockColor color;
+  final bool isIce;
+  final bool isBonus;
 
   int get cellCount => shape.length;
 
