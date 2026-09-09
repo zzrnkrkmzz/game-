@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../onboarding/logic/onboarding_controller.dart';
+import '../shared/haptics.dart';
 import '../shared/resource_bar.dart';
 import 'logic/game_controller.dart';
 import 'models/block_color.dart';
@@ -9,8 +11,9 @@ import 'models/piece.dart';
 /// Çekirdek oyun ekranı: 8x8 tahta + 3'lü parça tepsisi. Kaynak bakiyesi
 /// [ResourceBar] üzerinden Island ekranıyla paylaşılır (bkz. docs/GDD.md,
 /// Bölüm 14 — bu ekran kaynak/bina sisteminden bağımsız olarak tek başına
-/// da test edilebilir kalır).
-class BoardScreen extends ConsumerWidget {
+/// da test edilebilir kalır). Skor patlaması, haptik ve ilk-hamle ipucu
+/// gibi Faz 5 cilalama öğelerini de barındırır (bkz. Bölüm 8.1).
+class BoardScreen extends ConsumerStatefulWidget {
   const BoardScreen({super.key});
 
   static const _background = Color(0xFF0E2033);
@@ -18,32 +21,131 @@ class BoardScreen extends ConsumerWidget {
   static const _ink = Color(0xFFEFE6D3);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BoardScreen> createState() => _BoardScreenState();
+}
+
+class _BoardScreenState extends ConsumerState<BoardScreen> {
+  String? _popupText;
+  int _popupSeq = 0;
+
+  void _handlePlacement(GameState? previous, GameState next) {
+    final result = next.lastResult;
+    if (result == null || identical(result, previous?.lastResult)) return;
+
+    Haptics.placePiece();
+    if (result.linesCleared > 0) Haptics.lineCleared();
+    if (next.isGameOver && previous?.isGameOver != true) Haptics.gameOver();
+
+    if (result.scoreGained <= 0) return;
+    final text = result.linesCleared > 1
+        ? '+${result.scoreGained} · KOMBO x${result.linesCleared}!'
+        : '+${result.scoreGained}';
+
+    final seq = ++_popupSeq;
+    setState(() => _popupText = text);
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted && _popupSeq == seq) setState(() => _popupText = null);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<GameState>(gameControllerProvider, _handlePlacement);
     final state = ref.watch(gameControllerProvider);
+    final onboarding = ref.watch(onboardingControllerProvider);
 
     return Scaffold(
-      backgroundColor: _background,
+      backgroundColor: BoardScreen._background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
+          child: Stack(
             children: [
-              _ScoreHeader(score: state.score),
-              const SizedBox(height: 20),
-              Expanded(
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: _BoardGrid(),
+              Column(
+                children: [
+                  _ScoreHeader(score: state.score),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Center(
+                      child: AspectRatio(aspectRatio: 1, child: _BoardGrid()),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const _PieceTray(),
+                  if (onboarding.showMoveHint) const _MoveHint(),
+                  const SizedBox(height: 8),
+                  if (state.isGameOver) _GameOverBanner(score: state.score),
+                ],
+              ),
+              Align(
+                alignment: const Alignment(0, -0.55),
+                child: IgnorePointer(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _popupText == null
+                        ? const SizedBox.shrink(key: ValueKey('empty'))
+                        : _ScorePopup(
+                            key: ValueKey(_popupSeq),
+                            text: _popupText!,
+                          ),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const _PieceTray(),
-              const SizedBox(height: 8),
-              if (state.isGameOver) _GameOverBanner(score: state.score),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScorePopup extends StatelessWidget {
+  const _ScorePopup({required super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
+      builder: (context, t, child) => Opacity(
+        opacity: (1 - t).clamp(0, 1),
+        child: Transform.translate(offset: Offset(0, -24 * t), child: child),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFFFFC96B),
+          fontWeight: FontWeight.w800,
+          fontSize: 22,
+          shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoveHint extends StatelessWidget {
+  const _MoveHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeInOut,
+        builder: (context, t, child) => Transform.translate(
+          offset: Offset(0, -4 * (0.5 - (t - 0.5).abs()) * 2),
+          child: child,
+        ),
+        child: const Text(
+          '👆 Bir parçayı tahtaya sürükle',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF9FB6C7), fontSize: 12),
         ),
       ),
     );

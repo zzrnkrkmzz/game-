@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../board/models/block_color.dart';
+import '../shared/haptics.dart';
 import '../shared/resource_bar.dart';
 import '../shared/resource_wallet.dart';
 import 'logic/island_controller.dart';
@@ -102,7 +103,15 @@ class _BuildingCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Text(type.icon, style: const TextStyle(fontSize: 32)),
+          TweenAnimationBuilder<double>(
+            key: ValueKey(level),
+            tween: Tween(begin: level == 0 ? 1.0 : 1.4, end: 1.0),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.elasticOut,
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
+            child: Text(type.icon, style: const TextStyle(fontSize: 32)),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -140,7 +149,9 @@ class _BuildingCard extends ConsumerWidget {
             costLabel: maxed
                 ? null
                 : '${type.costForLevel(nextLevel)} ${type.costResource.icon}',
-            onPressed: () => controller.upgrade(type),
+            onPressed: () {
+              if (controller.upgrade(type)) Haptics.buildingUpgraded();
+            },
           ),
         ],
       ),

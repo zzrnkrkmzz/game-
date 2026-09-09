@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'board/board_screen.dart';
 import 'collection/collection_panel.dart';
 import 'island/island_screen.dart';
+import 'onboarding/logic/onboarding_controller.dart';
 import 'quests/logic/daily_quest_controller.dart';
 import 'quests/quest_panel.dart';
+import 'shared/haptics.dart';
 
 void main() {
   runApp(const ProviderScope(child: AdaBlastApp()));
@@ -71,6 +73,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<OnboardingState>(onboardingControllerProvider, (previous, next) {
+      if (next.navigateToIslandRequested) {
+        ref.read(onboardingControllerProvider.notifier).consumeNavigationRequest();
+        _goTo(1);
+      }
+    });
+
     return Scaffold(
       body: Stack(
         children: [
@@ -87,12 +96,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 children: [
                   _TopIconButton(
                     icon: '📋',
-                    onTap: () => showQuestPanel(context),
+                    onTap: () {
+                      Haptics.tap();
+                      showQuestPanel(context);
+                    },
                   ),
                   const SizedBox(width: 8),
                   _TopIconButton(
                     icon: '📖',
-                    onTap: () => showCollectionPanel(context),
+                    onTap: () {
+                      Haptics.tap();
+                      showCollectionPanel(context);
+                    },
                   ),
                 ],
               ),
@@ -106,9 +121,23 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _NavDot(label: '🧩 Tahta', selected: _page == 0, onTap: () => _goTo(0)),
+              _NavDot(
+                label: '🧩 Tahta',
+                selected: _page == 0,
+                onTap: () {
+                  Haptics.tap();
+                  _goTo(0);
+                },
+              ),
               const SizedBox(width: 24),
-              _NavDot(label: '🏝️ Ada', selected: _page == 1, onTap: () => _goTo(1)),
+              _NavDot(
+                label: '🏝️ Ada',
+                selected: _page == 1,
+                onTap: () {
+                  Haptics.tap();
+                  _goTo(1);
+                },
+              ),
             ],
           ),
         ),

@@ -1,6 +1,6 @@
 # Ada Blast — Oyun Tasarım Dokümanı (GDD)
 
-**Versiyon**: 0.3 · **Durum**: Faz 1-3 uygulandı (çekirdek prototip, Ada ekranı, biyom/görev/koleksiyon sistemleri) — Faz 4 (Monetizasyon) bekliyor
+**Versiyon**: 0.4 · **Durum**: Faz 1-3 ve Faz 5 uygulandı (çekirdek prototip, Ada ekranı, biyom/görev/koleksiyon, cilalama) — Faz 4 (Monetizasyon), gerçek reklam/ödeme SDK hesapları gerektirdiği için şimdilik atlandı
 **Çalışma adı**: Ada Blast (kesinleşmemiş)
 
 ---
@@ -121,10 +121,23 @@ Royal Match / Township esintili bir görsel dil:
 ## 8. Onboarding ve Navigasyon
 
 ### 8.1 Onboarding — Doğrudan Oyuna Düş
+
+**Durum: Faz 5'te uygulandı** (`lib/onboarding/`).
+
 - Açılış ekranı veya hesap oluşturma yoktur; oyuncu saniyeler içinde tahtayla karşı karşıyadır.
-- İlk 2-3 hamle ok/ışık ipucuyla yönlendirilir.
-- İlk satır temizlenince kaynak kazanılır ve Ada ekranına geçiş otomatik olarak tetiklenir.
+- İlk 2 hamlede tahtanın altında nazikçe yanıp sönen bir ipucu metni gösterilir ("Bir parçayı tahtaya sürükle").
+- İlk satır/sütun temizlenince (`OnboardingController.recordLineCleared`) Ada ekranına geçiş otomatik olarak tetiklenir (`HomeShell` bu isteği dinleyip sayfayı kaydırır).
 - Hedef: ilk 10 saniyede sürtünmeyi minimuma indirmek.
+- *Not*: Bu akış şu an yalnızca uygulama açıkken (in-memory) çalışıyor — "yeniden yüklendiğinde tekrar gösterilmesin" gibi kalıcı bir "onboarding'i gördü" bayrağı, Hive entegrasyonu ile birlikte eklenecek.
+
+### 8.3 Cilalama (Animasyon, Haptik) — Faz 5
+
+**Durum: Uygulandı** (`lib/shared/haptics.dart`, `board_screen.dart`, `island_screen.dart`).
+
+- **Haptik**: parça yerleştirmede hafif, satır/sütun temizlemede orta, oyun bitişinde güçlü, bina yükseltmede hafif, ikon dokunuşlarında seçim tıklaması. Web/desteklenmeyen platformlarda sessizce yok sayılır.
+- **Skor patlaması**: her yerleştirmede tahtanın üzerinde beliren, yukarı kayıp sönen "+N" metni; birden fazla satır/sütun temizlenirse "KOMBO xN" etiketi eklenir.
+- **Bina yükseltme animasyonu**: Ada ekranında bina ikonu her seviye atlayışta esneyerek (elastic) büyür.
+- **Ses**: Henüz uygulanmadı. Bölüm 7.2'de tarif edilen sakin/rahatlatıcı müzik ve SFX (marimba/kalimba temalı) gerçek ses dosyaları gerektiriyor; bu prototip aşamasında ses varlığı üretilmedi/temin edilmedi. İleride bir `SfxController` ile bu kancalara (yerleştirme, temizlik, bina inşası) bağlanacak şekilde mimari hazır.
 
 ### 8.2 Navigasyon — Yatay Kaydırma (Board ↔ Ada)
 - İki ana ekran (Tahta ve Ada) parmakla sağa/sola kaydırarak ya da merkezi bir buton ile geçilir — aynı dünyanın iki yakası gibi hissettirir.
@@ -199,8 +212,8 @@ Tam renk körlüğü modu (seçilebilir palet) ve ekran okuyucu desteği gibi ge
 | 1 | Çekirdek block-blast prototipi (grid, parça yerleştirme, skor) — oynanabilir dikey dilim | ✅ Tamamlandı |
 | 2 | Kaynak üretimi + temel Ada ekranı (3-5 bina) | ✅ Tamamlandı |
 | 3 | Tema/biyom ilerlemesi, koleksiyon, günlük görevler | ✅ Tamamlandı |
-| 4 | Monetizasyon entegrasyonu (reklam + IAP + Ada Pass) | ⏳ Sırada |
-| 5 | Cilalama: animasyon, ses, haptik, onboarding/tutorial | Bekliyor |
+| 4 | Monetizasyon entegrasyonu (reklam + IAP + Ada Pass) | Atlandı (gerçek SDK/hesap gerektiriyor) |
+| 5 | Cilalama: animasyon, haptik, onboarding/tutorial | ✅ Tamamlandı (ses hariç — bkz. Bölüm 8.3) |
 | 6 | Mağaza hazırlığı: ikon, ekran görüntüleri, gizlilik politikası, yaş derecelendirmesi, Firebase kurulumu, yasal checklist | Bekliyor |
 | 7 | Soft launch → geri bildirim → global lansman | Bekliyor |
 

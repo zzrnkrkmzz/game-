@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../island/logic/island_controller.dart';
 import '../../island/models/biome.dart';
+import '../../onboarding/logic/onboarding_controller.dart';
 import '../../quests/logic/daily_quest_controller.dart';
 import '../../shared/resource_wallet.dart';
 import '../models/block_color.dart';
@@ -149,8 +150,14 @@ final gameControllerProvider =
         onResourcesGained: ref.read(resourceWalletProvider.notifier).deposit,
         isIceBiomeEnabled: () =>
             ref.read(islandControllerProvider).biome.hasIceBlocks,
-        onLinesCleared: ref.read(dailyQuestControllerProvider.notifier).recordLinesCleared,
-        onCellsPlaced: ref.read(dailyQuestControllerProvider.notifier).recordCellsPlaced,
+        onLinesCleared: (count) {
+          ref.read(dailyQuestControllerProvider.notifier).recordLinesCleared(count);
+          ref.read(onboardingControllerProvider.notifier).recordLineCleared();
+        },
+        onCellsPlaced: (count) {
+          ref.read(dailyQuestControllerProvider.notifier).recordCellsPlaced(count);
+          ref.read(onboardingControllerProvider.notifier).recordMove();
+        },
         onScoreGained: ref.read(dailyQuestControllerProvider.notifier).recordScore,
         onRoundFinished: ref.read(dailyQuestControllerProvider.notifier).recordRoundFinished,
       ),
