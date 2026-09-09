@@ -9,6 +9,23 @@ import 'models/block_color.dart';
 import 'models/piece.dart';
 import 'models/placed_block.dart';
 
+/// Sürüklenen tepsi parçasının anlık global işaretçi konumu — parçanın
+/// tahta üzerinde nereye oturacağını sürekli takip edebilmek için
+/// [Draggable.onDragUpdate] burada güncellenir (bkz. [_TraySlot]) ve
+/// [_BoardGrid] bunu izleyip hayalet önizlemeyi hesaplar. Önceden 64 ayrı
+/// [DragTarget]'ın giriş/çıkış (onWillAccept/onLeave) olaylarına
+/// dayanılıyordu; bunlar sürekli konum bildirmediği için önizleme bazen
+/// tek hücrede takılı kalıyordu — bu yaklaşım her imleç hareketinde
+/// gerçek global konumu paylaşarak daha güvenilir çalışır.
+class DragHoverInfo {
+  const DragHoverInfo({required this.trayIndex, required this.globalPosition});
+
+  final int trayIndex;
+  final Offset globalPosition;
+}
+
+final dragHoverProvider = StateProvider<DragHoverInfo?>((ref) => null);
+
 /// Çekirdek oyun ekranı: 8x8 tahta + 3'lü parça tepsisi. Kaynak bakiyesi
 /// [ResourceBar] üzerinden Island ekranıyla paylaşılır (bkz. docs/GDD.md,
 /// Bölüm 14 — bu ekran kaynak/bina sisteminden bağımsız olarak tek başına
@@ -219,38 +236,71 @@ class _BoardGrid extends ConsumerStatefulWidget {
 }
 
 class _BoardGridState extends ConsumerState<_BoardGrid> {
-  int? _hoveredTrayIndex;
-  int? _hoveredRow;
-  int? _hoveredCol;
+  static const _padding = 8.0;
+  final GlobalKey _gridKey = GlobalKey();
+
+  /// [globalPosition]'ı, dolgu ve hücre aralıklarını hesaba katarak
+  /// tahtadaki (row, col) hücre koordinatına çevirir. Konum tahtanın
+  /// dışındaysa null döner.
+  (int row, int col)? _cellAt(Offset globalPosition, int size) {
+    final box = _gridKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached) return null;
+    final local = box.globalToLocal(globalPosition);
+    final x = local.dx - _padding;
+    final y = local.dy - _padding;
+    final contentWidth = box.size.width - _padding * 2;
+    final contentHeight = box.size.height - _padding * 2;
+    if (x < 0 || y < 0 || x >= contentWidth || y >= contentHeight) return null;
+
+    final cellWidth = contentWidth / size;
+    final cellHeight = contentHeight / size;
+    final col = (x / cellWidth).floor().clamp(0, size - 1);
+    final row = (y / cellHeight).floor().clamp(0, size - 1);
+    return (row, col);
+  }
 
   @override
   Widget build(BuildContext context) {
     final controller = ref.read(gameControllerProvider.notifier);
     final state = ref.watch(gameControllerProvider);
+    final hover = ref.watch(dragHoverProvider);
     final size = state.board.size;
 
     // Sürüklenen parçanın tüm gövdesinin nereye oturacağını gösteren
     // "hayalet" önizleme — sadece imlecin altındaki tek hücre değil,
-    // parçanın kaplayacağı bütün hücreler vurgulanır.
+    // parçanın kaplayacağı bütün hücreler vurgulanır. Konum,
+    // [dragHoverProvider] üzerinden gelen sürekli imleç takibiyle
+    // hesaplanır (bkz. [DragHoverInfo]).
     Piece? hoveredPiece;
+    int? anchorRow;
+    int? anchorCol;
     final footprint = <int>{};
     var footprintValid = false;
-    if (_hoveredTrayIndex != null && _hoveredRow != null && _hoveredCol != null) {
-      hoveredPiece = state.tray[_hoveredTrayIndex!];
-      if (hoveredPiece != null) {
-        footprintValid = controller.canPlace(_hoveredTrayIndex!, _hoveredRow!, _hoveredCol!);
-        for (final cell in hoveredPiece.shape) {
-          final r = _hoveredRow! + cell.row;
-          final c = _hoveredCol! + cell.col;
-          if (r >= 0 && r < size && c >= 0 && c < size) {
-            footprint.add(r * size + c);
+    if (hover != null) {
+      final cell = _cellAt(hover.globalPosition, size);
+      final piece = state.tray[hover.trayIndex];
+      if (cell != null && piece != null) {
+        hoveredPiece = piece;
+        anchorRow = cell.$1;
+        anchorCol = cell.$2;
+        footprintValid = controller.canPlace(
+          hover.trayIndex,
+          anchorRow,
+          anchorCol,
+        );
+        for (final c in piece.shape) {
+          final r = anchorRow + c.row;
+          final cc = anchorCol + c.col;
+          if (r >= 0 && r < size && cc >= 0 && cc < size) {
+            footprint.add(r * size + cc);
           }
         }
       }
     }
 
     return Container(
-      padding: const EdgeInsets.all(8),
+      key: _gridKey,
+      padding: const EdgeInsets.all(_padding),
       decoration: BoxDecoration(
         color: const Color(0xFF0F2439),
         borderRadius: BorderRadius.circular(20),
@@ -263,44 +313,34 @@ class _BoardGridState extends ConsumerState<_BoardGrid> {
           ),
         ],
       ),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: size,
-          crossAxisSpacing: 3,
-          mainAxisSpacing: 3,
-        ),
-        itemCount: size * size,
-        itemBuilder: (context, index) {
-          final row = index ~/ size;
-          final col = index % size;
-          final block = state.board.cellAt(row, col);
-          final isInFootprint = footprint.contains(index);
+      child: DragTarget<int>(
+        onWillAcceptWithDetails: (_) => true,
+        onAcceptWithDetails: (details) {
+          // Bırakma hücresi olarak, önizlemede gösterilen aynı çapa
+          // (anchorRow/anchorCol) kullanılır — böylece "gördüğün, aldığındır"
+          // (WYSIWYG) ve details.offset'in (feedback boyutu tepsi
+          // önizlemesinden farklı olduğu için) yanlış hücreye işaret etme
+          // riski ortadan kalkar.
+          if (anchorRow != null && anchorCol != null) {
+            controller.placePiece(details.data, anchorRow, anchorCol);
+          }
+          ref.read(dragHoverProvider.notifier).state = null;
+        },
+        builder: (context, candidates, rejects) {
+          return GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: size,
+              crossAxisSpacing: 3,
+              mainAxisSpacing: 3,
+            ),
+            itemCount: size * size,
+            itemBuilder: (context, index) {
+              final row = index ~/ size;
+              final col = index % size;
+              final block = state.board.cellAt(row, col);
+              final isInFootprint = footprint.contains(index);
 
-          return DragTarget<int>(
-            onWillAcceptWithDetails: (details) {
-              setState(() {
-                _hoveredTrayIndex = details.data;
-                _hoveredRow = row;
-                _hoveredCol = col;
-              });
-              return true;
-            },
-            onLeave: (_) {
-              setState(() {
-                _hoveredRow = null;
-                _hoveredCol = null;
-              });
-            },
-            onAcceptWithDetails: (details) {
-              controller.placePiece(details.data, row, col);
-              setState(() {
-                _hoveredTrayIndex = null;
-                _hoveredRow = null;
-                _hoveredCol = null;
-              });
-            },
-            builder: (context, candidates, rejects) {
               return _BoardCell(
                 block: block,
                 isInFootprint: isInFootprint,
@@ -342,8 +382,9 @@ class _BoardCell extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: (footprintValid ? Colors.white : Colors.red)
-                .withValues(alpha: 0.6),
+            color: (footprintValid ? Colors.white : Colors.red).withValues(
+              alpha: 0.6,
+            ),
             width: 1.5,
           ),
         ),
@@ -392,7 +433,10 @@ class _BoardCell extends StatelessWidget {
       ),
       child: isBonus
           ? const Center(
-              child: Text('★', style: TextStyle(fontSize: 12, color: Colors.white)),
+              child: Text(
+                '★',
+                style: TextStyle(fontSize: 12, color: Colors.white),
+              ),
             )
           : (isIce
                 ? const Center(child: Text('❄', style: TextStyle(fontSize: 12)))
@@ -436,22 +480,37 @@ class _PieceTray extends ConsumerWidget {
   }
 }
 
-class _TraySlot extends StatelessWidget {
+class _TraySlot extends ConsumerWidget {
   const _TraySlot({required this.trayIndex, required this.piece});
 
   final int trayIndex;
   final Piece? piece;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (piece == null) return const SizedBox(width: 80, height: 80);
 
     final preview = _PiecePreview(piece: piece!, cellSize: 20);
+
+    void clearHover() {
+      final current = ref.read(dragHoverProvider);
+      if (current?.trayIndex == trayIndex) {
+        ref.read(dragHoverProvider.notifier).state = null;
+      }
+    }
 
     return Draggable<int>(
       data: trayIndex,
       feedback: _DragFeedback(piece: piece!),
       childWhenDragging: Opacity(opacity: 0.3, child: preview),
+      onDragUpdate: (details) {
+        ref.read(dragHoverProvider.notifier).state = DragHoverInfo(
+          trayIndex: trayIndex,
+          globalPosition: details.globalPosition,
+        );
+      },
+      onDragEnd: (_) => clearHover(),
+      onDraggableCanceled: (_, _) => clearHover(),
       child: preview,
     );
   }
@@ -520,7 +579,10 @@ class _PiecePreview extends StatelessWidget {
                     ],
                   ),
                   border: piece.isIce
-                      ? Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2)
+                      ? Border.all(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          width: 2,
+                        )
                       : null,
                   boxShadow: [
                     BoxShadow(
@@ -532,7 +594,10 @@ class _PiecePreview extends StatelessWidget {
                 ),
                 child: piece.isBonus
                     ? const Center(
-                        child: Text('★', style: TextStyle(fontSize: 10, color: Colors.white)),
+                        child: Text(
+                          '★',
+                          style: TextStyle(fontSize: 10, color: Colors.white),
+                        ),
                       )
                     : null,
               ),
@@ -567,7 +632,8 @@ class _GameOverBanner extends ConsumerWidget {
             ),
           ),
           TextButton(
-            onPressed: () => ref.read(gameControllerProvider.notifier).newGame(),
+            onPressed: () =>
+                ref.read(gameControllerProvider.notifier).newGame(),
             child: const Text('Yeniden Oyna'),
           ),
         ],
