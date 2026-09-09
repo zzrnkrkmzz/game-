@@ -72,16 +72,34 @@ void main() {
         child: const MaterialApp(home: BoardScreen()),
       ),
     );
+    await tester.pumpAndSettle();
 
     final draggable = find.byType(Draggable<int>).first;
     final target = find.byType(DragTarget<int>).first;
 
-    final gesture = await tester.startGesture(tester.getCenter(draggable));
-    await tester.pump(const Duration(milliseconds: 50));
-    await gesture.moveTo(tester.getCenter(target));
-    await tester.pump(const Duration(milliseconds: 50));
+    // Piece önizlemesindeki hücreler arasında 2px boşluk bırakılıyor
+    // (bkz. _PiecePreview); parçanın geometrik merkezi tam bu boşlukların
+    // kesiştiği noktaya denk gelebiliyor ve isabet testi orada başarısız
+    // olabiliyor. Merkezden küçük bir ofsetle başlamak bunu güvenilir
+    // şekilde önlüyor.
+    final start = tester.getCenter(draggable) + const Offset(3, 3);
+    final end = tester.getCenter(target);
+
+    final gesture = await tester.startGesture(start);
+    await tester.pump(const Duration(milliseconds: 20));
+    const steps = 6;
+    for (var i = 1; i <= steps; i++) {
+      final t = i / steps;
+      await gesture.moveTo(Offset.lerp(start, end, t)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     await gesture.up();
     await tester.pumpAndSettle();
+    // Skor patlaması (_ScorePopup) 900ms sonra kendini temizleyen bir
+    // Future.delayed zamanlayıcısı kullanıyor; pumpAndSettle bunu
+    // beklemeyebiliyor, test bitişinde "pending timer" hatası vermemesi
+    // için süresini dolduruyoruz.
+    await tester.pump(const Duration(milliseconds: 950));
 
     expect(container.read(gameControllerProvider).score, greaterThan(0));
   });

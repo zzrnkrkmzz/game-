@@ -67,6 +67,16 @@ class PieceShapes {
     Point(2, 0),
   ];
 
+  /// "Artı" (plus) pentomino — klasik block-blast oyunlarında yaygın,
+  /// tüm yönlerden komşu hücre isteyen, yerleştirmesi en zor şekillerden.
+  static const PieceShape pentominoPlus = [
+    Point(0, 1),
+    Point(1, 0),
+    Point(1, 1),
+    Point(1, 2),
+    Point(2, 1),
+  ];
+
   /// Tepsi üretiminde ağırlıklı rastgele seçim için kullanılan tüm havuz.
   /// Küçük parçalar (1-3 hücre) daha sık, büyük parçalar (4-5 hücre) daha
   /// seyrek gelir — bu, `PieceGenerator` tarafından ağırlıklandırılır.
@@ -87,5 +97,6 @@ class PieceShapes {
     tetrominoL,
     tetrominoJ,
     pentominoP,
+    pentominoPlus,
   ];
 }
