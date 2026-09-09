@@ -226,12 +226,15 @@ class _BuildingCard extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      type.displayName,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                    Flexible(
+                      child: Text(
+                        type.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _ink,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
